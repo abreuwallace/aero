@@ -34,7 +34,7 @@ def match_files(lr, hr):
 def assert_sets(lr_set, hr_set):
     n_samples = len(lr_set)
     for i in tqdm(range(n_samples)):
-        assert lr_set[i].shape == hr_set[i].shape
+        assert lr_set[i].shape == hr_set[i].shape, f"file {i} shape is not the same, lr: {lr_set[i].shape}, hr: {hr_set[i].shape}"
 
 
 def match_source_to_target_length(source_sig, target_sig):
@@ -131,7 +131,7 @@ class LrHrSet(Dataset):
                                with_path=with_path)
         self.hr_set = Audioset(hr, sample_rate=hr_sr, length=hr_length, stride=hr_stride, pad=pad, channels=1,
                                with_path=with_path)
-        assert len(self.hr_set) == len(self.lr_set)
+        assert len(self.hr_set) == len(self.lr_set), f"hr: {len(self.hr_set)}, lr: {len(self.lr_set)}"
 
     def __getitem__(self, index):
         if self.with_path:
@@ -162,12 +162,12 @@ class LrHrSet(Dataset):
 
 
 if __name__ == "__main__":
-    json_dir = '../egs/vctk/16-24/val'
-    lr_sr = 16000
-    hr_sr = 24000
+    json_dir = 'egs/chopin-11-44/tr'
+    lr_sr = 11025
+    hr_sr = 44100
     pad = True
-    stride_sec = 2
-    segment_sec = 2
+    stride_sec = 3
+    segment_sec = 3
 
     data_set = LrHrSet(json_dir, lr_sr, hr_sr, stride_sec, segment_sec)
     assert_sets(data_set.lr_set, data_set.hr_set)
