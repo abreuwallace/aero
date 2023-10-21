@@ -21,19 +21,20 @@ logger = logging.getLogger(__name__)
 
 def overlap_and_add(chunks, overlap=256, window_len=1024):
     W = window_len
-    win_left_side = np.hanning(2 * overlap)[:overlap]
-    win_right_side = np.hanning(2 * overlap)[overlap:]
+    win_left_side = np.bartlett(2 * overlap)[:overlap]
+    win_right_side = np.bartlett(2 * overlap)[overlap:]
     window = np.concatenate((win_left_side, np.ones(W - 2 * overlap), win_right_side))
     left_window = np.concatenate((np.ones(W - overlap), win_right_side))
     right_window = np.concatenate((win_left_side, np.ones(W - overlap)))    
     n_chunks = len(chunks)
     for i in range(n_chunks):
         if i == 0:
-            y = (chunks[i] * left_window).reshape(-1,)
+            y = (chunks[i].reshape(-1,) * left_window)
         else:
             x_chunk = chunks[i].reshape(-1,)
-            if len(x_chunk) < W:
-                x_chunk = np.pad(x_chunk, (0, W - len(x_chunk)), 'constant', constant_values=0)
+            if len(x_chunk) < W or i == n_chunks - 1:
+                end_pad = W - len(x_chunk)
+                x_chunk = np.pad(x_chunk, (0, end_pad), 'constant', constant_values=0)
                 x_ola = x_chunk * right_window
             else:
                 x_ola = x_chunk * window
@@ -83,15 +84,16 @@ def main(args):
     logger.info(f'lr wav shape: {lr_sig.shape}')
 
     segment_duration_samples = sr * SEGMENT_DURATION_SEC
-    W = segment_duration_samples
-    overlap_scale = 4
-    overlap = segment_duration_samples//overlap_scale
-    win_left_side = np.hanning(W)[:2*overlap:2]
-    win_right_side = np.hanning(W)[-2*overlap::2]
-    window = np.concatenate((win_left_side, np.ones(W - 2*overlap), win_right_side))
-    left_window = np.concatenate((np.ones(W - overlap), win_right_side))
-    right_window = np.concatenate((win_left_side, np.ones(W - overlap))) 
-    n_chunks = math.ceil(lr_sig.shape[-1] / (W - overlap))
+    W_hr = 44100
+    W_lr = 11025
+    overlap_hr = 900
+    overlap_lr = overlap_hr // 4
+    # win_left_side = np.hanning(W)[:2*overlap:2]
+    # win_right_side = np.hanning(W)[-2*overlap::2]
+    # window = np.concatenate((win_left_side, np.ones(W - 2*overlap), win_right_side))
+    # left_window = np.concatenate((np.ones(W - overlap), win_right_side))
+    # right_window = np.concatenate((win_left_side, np.ones(W - overlap))) 
+    n_chunks = math.ceil(lr_sig.shape[-1] / (W_lr - overlap_lr))
     logger.info(f'number of chunks: {n_chunks}')
 
     chunks_dir = output_dir + "/chunks/"
@@ -101,8 +103,8 @@ def main(args):
 
     lr_chunks = []
     for i in range(n_chunks):
-        start = i * (W - overlap)
-        end = min(start + W, lr_sig.shape[-1])
+        start = i * (W_lr - overlap_lr)
+        end = min(start + W_lr, lr_sig.shape[-1])
         lr_chunks.append(lr_sig[:, start:end])
         #chunk_filename = chunks_dir + file_basename+ 'chunk_' + str(i) + '_lr.wav'
         #write(lr_sig[:, start:end], chunk_filename, args.experiment.lr_sr)
@@ -124,9 +126,9 @@ def main(args):
     logger.info(f'prediction duration: {pred_duration}')
 
     #pr = torch.concat(pr_chunks, dim=-1)
-    pr_ola = overlap_and_add(pr_chunks, overlap=44100//overlap_scale, window_len=44100)
+    pr_ola = overlap_and_add(pr_chunks, overlap=overlap_hr, window_len=W_hr)
     #Debug para avaliar reconstrução do original
-    lr = overlap_and_add(lr_chunks, overlap=11025//overlap_scale, window_len=11025)
+    lr = overlap_and_add(lr_chunks, overlap=overlap_lr, window_len=W_lr)
 
     logger.info(f'pr wav shape: {pr_ola.shape}')
 
