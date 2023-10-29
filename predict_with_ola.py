@@ -84,7 +84,7 @@ def main(args):
     logger.info(f'lr wav shape: {lr_sig.shape}')
 
     segment_duration_samples = sr * SEGMENT_DURATION_SEC
-    W_hr = 44100
+    W_hr = 44095 # 44100 samples minus the edge effect samples
     W_lr = 11025
     overlap_hr = 900
     overlap_lr = overlap_hr // 4
@@ -96,8 +96,8 @@ def main(args):
     n_chunks = math.ceil(lr_sig.shape[-1] / (W_lr - overlap_lr))
     logger.info(f'number of chunks: {n_chunks}')
 
-    chunks_dir = output_dir + "/chunks/"
-    os.makedirs(chunks_dir, exist_ok=True)
+    #chunks_dir = output_dir + "/chunks/"
+    #os.makedirs(chunks_dir, exist_ok=True)
 
 
 
@@ -106,7 +106,7 @@ def main(args):
         start = i * (W_lr - overlap_lr)
         end = min(start + W_lr, lr_sig.shape[-1])
         lr_chunks.append(lr_sig[:, start:end])
-        #chunk_filename = chunks_dir + file_basename+ 'chunk_' + str(i) + '_lr.wav'
+        #chunk_filename = chunks_dir + 'lr_chunks/' + file_basename+ 'chunk_' + str(i) + '_lr.wav'
         #write(lr_sig[:, start:end], chunk_filename, args.experiment.lr_sr)
     pr_chunks = []
 
@@ -116,9 +116,11 @@ def main(args):
     with torch.no_grad():
         for i, lr_chunk in enumerate(lr_chunks):
             pr_chunk = model(lr_chunk.unsqueeze(0).to(device)).squeeze(0)
+            #remove edge effect samples
+            pr_chunk = pr_chunk[:, :-5]
             #logger.info(f'lr chunk {i} shape: {lr_chunk.shape}')
             #logger.info(f'pr chunk {i} shape: {pr_chunk.shape}')
-            chunk_filename = chunks_dir + file_basename+ 'chunk_' + str(i) + '_pr.wav'
+            #chunk_filename = chunks_dir + file_basename+ 'chunk_' + str(i) + '_pr.wav'
             #write(pr_chunk, chunk_filename, args.experiment.hr_sr)
             pr_chunks.append(pr_chunk.cpu())
 
